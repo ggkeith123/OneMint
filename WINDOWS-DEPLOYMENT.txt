@@ -1,0 +1,324 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     WINDOWS DEPLOYMENT GUIDE                                 ║
+║              For Windows 10/11 Users - Copy/Paste Ready!                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🪟 OPTIMIZED FOR WINDOWS!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚡ STEP 1: Install Node.js (if not installed)
+═══════════════════════════════════════════════════════════════════════════════
+
+Download: https://nodejs.org/
+Install: Click through installer (accept defaults)
+Verify: Open PowerShell or CMD and type:
+
+node --version
+npm --version
+
+Should show version numbers!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📦 STEP 2: Extract and Setup
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Extract x402rocks-complete-package.zip to your Desktop
+2. Open PowerShell (or CMD)
+3. Navigate to folder:
+
+cd Desktop\x402rocks-complete-package
+
+4. Install dependencies:
+
+npm install
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔧 STEP 3: Create .env File (Windows Way!)
+═══════════════════════════════════════════════════════════════════════════════
+
+OPTION 1: Using Windows Notepad (Easiest!)
+────────────────────────────────────────────────────────────────────────────
+
+copy .env.example .env
+notepad .env
+
+This opens Notepad with the .env file!
+
+OPTION 2: Using PowerShell Command
+────────────────────────────────────────────────────────────────────────────
+
+copy .env.example .env
+
+Then edit with your favorite editor:
+- Notepad: notepad .env
+- VS Code: code .env
+- Notepad++: notepad++ .env
+
+OPTION 3: One Command to Create .env
+────────────────────────────────────────────────────────────────────────────
+
+Copy and paste this (replace with YOUR values!):
+
+@"
+CONTRACT_ADDRESS=0xYourContractAddressHere
+PRIVATE_KEY=0xYourPrivateKeyHere
+USDC_PAYMENT_ADDRESS=0xYourWalletAddress
+BASE_RPC_URL=https://mainnet.base.org
+PORT=3000
+"@ | Out-File -FilePath .env -Encoding utf8
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📝 WHAT TO PUT IN .env
+═══════════════════════════════════════════════════════════════════════════════
+
+CONTRACT_ADDRESS=0xYourContractAddressHere
+PRIVATE_KEY=0xYourPrivateKeyHere
+USDC_PAYMENT_ADDRESS=0xYourWalletAddress
+BASE_RPC_URL=https://mainnet.base.org
+PORT=3000
+
+Replace:
+- 0xYourContractAddressHere → Your deployed contract address
+- 0xYourPrivateKeyHere → Your wallet's private key
+- 0xYourWalletAddress → Where USDC payments go
+
+Save and close!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📜 STEP 4: Deploy Smart Contract (Use Remix)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Open: https://remix.ethereum.org
+2. Create new file: X402RocksToken-USDC.sol
+3. Copy contents from: contracts\X402RocksToken-USDC.sol
+4. Paste into Remix
+5. Click "Solidity Compiler" (left sidebar)
+6. Select version: 0.8.20
+7. Click "Compile"
+8. Click "Deploy & Run Transactions"
+9. Change "Environment" to "Injected Provider - MetaMask"
+10. Connect MetaMask to Base Mainnet
+11. Deploy with these parameters:
+    - _usdcAddress: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+    - _paymentReceiver: Your wallet address
+12. Click "Deploy" → Confirm in MetaMask
+13. Copy the deployed contract address
+14. Paste into your .env file
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ STEP 5: Test Locally (Windows)
+═══════════════════════════════════════════════════════════════════════════════
+
+In PowerShell/CMD:
+
+npm start
+
+You should see:
+✅ "Server running on http://localhost:3000"
+✅ "USDC payment monitoring active!"
+
+Open browser: http://localhost:3000
+
+Press Ctrl+C to stop server
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🌐 STEP 6: Push to GitHub (Windows Git)
+═══════════════════════════════════════════════════════════════════════════════
+
+Install Git for Windows (if not installed):
+https://git-scm.com/download/win
+
+Then in PowerShell/CMD:
+
+git init
+git add .gitignore .env.example package.json server-automatic.js
+git add public\ contracts\ docs\ *.txt *.md
+git commit -m "Add x402rocks one-click minting"
+git remote add origin https://github.com/YOUR-USERNAME/YOUR-REPO.git
+git push -u origin main
+
+⚠️ VERIFY: Type "git status" - .env should NOT appear!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚂 STEP 7: Deploy to Railway
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Go to: https://railway.app
+2. Sign in with GitHub
+3. Click "New Project"
+4. Click "Deploy from GitHub repo"
+5. Select your repository
+6. Click on your service
+7. Click "Variables" tab
+8. Click "RAW Editor"
+9. Paste this (with YOUR actual values!):
+
+CONTRACT_ADDRESS=0xYourContractAddressHere
+PRIVATE_KEY=0xYourPrivateKeyHere
+USDC_PAYMENT_ADDRESS=0xYourWalletAddress
+BASE_RPC_URL=https://mainnet.base.org
+PORT=3000
+
+10. Click "Update Variables"
+11. Wait 2 minutes for deployment
+12. Click "Settings" → Copy your Railway URL
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎉 STEP 8: Test Your Live Site!
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Open your Railway URL
+2. Click "Connect MetaMask"
+3. Click "🚀 ONE-CLICK MINT (1 USDC)"
+4. Approve USDC in MetaMask
+5. Confirm mint transaction
+6. ✨ Tokens appear in wallet!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🪟 WINDOWS-SPECIFIC TIPS
+═══════════════════════════════════════════════════════════════════════════════
+
+Use PowerShell instead of CMD:
+✅ Better for modern development
+✅ More features
+✅ Required for some commands
+
+To open PowerShell in folder:
+1. Navigate to folder in File Explorer
+2. Shift + Right-click in folder
+3. Click "Open PowerShell window here"
+
+Use Windows Terminal (recommended):
+- Download from Microsoft Store (free!)
+- Better than standard PowerShell
+- Tabs, themes, better copy/paste
+
+File paths use backslash:
+❌ contracts/file.sol (Linux)
+✅ contracts\file.sol (Windows)
+
+But both work in most cases!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📝 QUICK WINDOWS COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
+
+Copy file:
+copy .env.example .env
+
+Edit file with Notepad:
+notepad .env
+
+List files:
+dir
+
+Change directory:
+cd folder-name
+
+Go up one folder:
+cd ..
+
+Clear screen:
+cls
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🆘 WINDOWS TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+"npm is not recognized"
+→ Install Node.js from https://nodejs.org
+→ Restart PowerShell after installing
+
+"Cannot run scripts"
+→ Run PowerShell as Administrator
+→ Run: Set-ExecutionPolicy RemoteSigned
+→ Type "Y" and press Enter
+
+"Port 3000 already in use"
+→ Change PORT in .env to 3001 or 8080
+
+".env file not found"
+→ Make sure you're in the right folder
+→ Type "dir" - should see .env.example
+→ Run: copy .env.example .env
+
+"Git is not recognized"
+→ Install Git from https://git-scm.com/download/win
+→ Restart PowerShell
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ WINDOWS CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+□ Node.js installed (node --version works)
+□ Git installed (git --version works)
+□ Package extracted to Desktop
+□ npm install completed
+□ .env file created (copy .env.example .env)
+□ .env edited with your values (notepad .env)
+□ Contract deployed on Remix
+□ npm start works locally
+□ Can see dashboard at http://localhost:3000
+□ Code pushed to GitHub (without .env!)
+□ Deployed on Railway
+□ Environment variables set on Railway
+□ Live site works
+□ Test mint successful
+□ ✅ DONE!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 COMPLETE WINDOWS WORKFLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+# 1. Extract package to Desktop
+Right-click ZIP → Extract All → Desktop
+
+# 2. Open PowerShell
+Shift + Right-click in folder → "Open PowerShell window here"
+
+# 3. Install
+npm install
+
+# 4. Create .env
+copy .env.example .env
+notepad .env
+# Add your values, save, close
+
+# 5. Deploy contract on Remix (use browser)
+
+# 6. Test
+npm start
+# Visit http://localhost:3000
+
+# 7. Push to GitHub
+git init
+git add .gitignore .env.example package.json server-automatic.js public\ contracts\ docs\ *.txt *.md
+git commit -m "Add x402rocks"
+git push
+
+# 8. Deploy on Railway (use browser)
+
+# 9. Test live site
+# ✅ Done!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 YOU'RE READY!
+
+Just follow these Windows-specific steps and you'll be live in 15 minutes!
+
+═══════════════════════════════════════════════════════════════════════════════

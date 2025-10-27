@@ -1,0 +1,29 @@
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.production
+
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Build files
+dist/
+build/
+
+# Private keys - EXTRA SAFETY
+*.key
+*.pem
+private/
+secrets/

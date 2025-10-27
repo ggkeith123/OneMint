@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🦴 x402rocks - Base Mainnet Minting</title>
+    <link rel="stylesheet" href="/styles.css">
+    <!-- Ethers.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" 
+        integrity="sha384-..." 
+        crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦴 x402rocks</h1>
+            <div class="subtitle">MINT 50,000 TOKENS ON BASE MAINNET</div>
+            <span class="badge">⚡ x402 Protocol</span>
+            <span class="badge">🔗 Base Mainnet</span>
+            <span class="badge">💎 Crypto Only</span>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="dashboard-grid">
+            <!-- Stats Card -->
+            <div class="card">
+                <h2>📊 MINTING STATS</h2>
+                <div class="stat-box">
+                    <div class="label">Total Mints</div>
+                    <div class="value" id="totalMints">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Remaining Mints</div>
+                    <div class="value" id="remainingMints">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Price per Mint</div>
+                    <div class="value" id="price">$1.00</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%">0%</div>
+                </div>
+            </div>
+
+            <!-- Mint Card -->
+            <div class="card">
+                <h2>🔥 MINT TOKENS</h2>
+                <div class="info-text">
+                    <strong>OPTION 1: One-Click Mint (Easiest!)</strong><br>
+                    Click button → Approve USDC → Mint → Done!<br><br>
+                    
+                    <strong>OPTION 2: Manual Send</strong><br>
+                    Get address → Send USDC → Auto-detected<br><br>
+                    
+                    <strong style="color: #ffd700;">⚡ Choose your preferred method!</strong>
+                </div>
+                <div class="input-group">
+                    <label>🏹 Your Wallet Address</label>
+                    <input type="text" id="walletAddress" placeholder="0x...">
+                    <button id="connectWallet" class="btn btn-secondary">
+                        Connect MetaMask
+                    </button>
+                </div>
+                <button id="mintDirectly" class="btn" style="background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);">
+                    🚀 ONE-CLICK MINT (1 USDC)
+                </button>
+                <button id="getMintInstructions" class="btn btn-secondary" style="margin-top: 5px;">
+                    📝 OR GET PAYMENT ADDRESS
+                </button>
+            </div>
+
+            <!-- Contract Info -->
+            <div class="card">
+                <h2>📜 CONTRACT INFO</h2>
+                <div class="stat-box">
+                    <div class="label">Contract Address</div>
+                    <div class="wallet-info" id="contractAddress">Loading...</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Payment Address</div>
+                    <div class="wallet-info" id="paymentAddress">Loading...</div>
+                </div>
+                <div class="info-text">
+                    <strong>Network:</strong> Base Mainnet<br>
+                    <strong>Chain ID:</strong> 8453<br>
+                    <strong>Explorer:</strong> <a href="https://basescan.org" class="link" target="_blank">BaseScan</a>
+                </div>
+            </div>
+
+            <!-- Balance Check -->
+            <div class="card">
+                <h2>💰 CHECK BALANCE</h2>
+                <div class="input-group">
+                    <label>Any Wallet Address</label>
+                    <input type="text" id="checkAddress" placeholder="0x...">
+                </div>
+                <button id="checkBalance" class="btn btn-secondary">
+                    🔍 CHECK BALANCE
+                </button>
+                <div id="balanceResult" class="stat-box" style="display: none; margin-top: 20px;">
+                    <div class="label">Token Balance</div>
+                    <div class="value" id="balanceAmount">0 X402</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px;">💰 SEND 1 USDC</h2>
+            
+            <div class="info-text" style="text-align: center; font-size: 18px; margin: 20px 0;">
+                Send <strong style="color: #ffd700;">1 USDC</strong> to this address:
+            </div>
+
+            <div class="wallet-info" id="modalPaymentAddress" style="text-align: center; font-size: 13px; margin: 20px 0;">
+                Loading...
+            </div>
+
+            <div class="info-text" style="margin: 25px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 10px;">
+                <strong style="color: #ffd700;">⚡ AUTOMATIC DETECTION</strong><br><br>
+                
+                Just send 1 USDC from your wallet on <strong>Base Mainnet</strong>.<br><br>
+                
+                We will:<br>
+                ✅ Automatically detect your payment<br>
+                ✅ Verify it on-chain<br>
+                ✅ Mint 50,000 tokens to your wallet<br><br>
+                
+                <strong>No need to submit transaction hash!</strong><br>
+                The process is fully automatic.
+            </div>
+
+            <div class="info-text" style="text-align: center; margin: 20px 0; padding: 15px; background: rgba(255, 215, 0, 0.1); border: 2px solid #ffd700; border-radius: 10px;">
+                <strong>💡 Make sure to:</strong><br>
+                • Use Base Mainnet<br>
+                • Send exactly 1 USDC<br>
+                • Send from the wallet you entered above
+            </div>
+
+            <button id="closeModal" class="btn btn-secondary" style="margin-top: 10px;">
+                ❌ CLOSE
+            </button>
+
+            <div class="info-text" style="margin-top: 25px; font-size: 11px; text-align: center; opacity: 0.7;">
+                Payment ID: <code id="modalPaymentId">-</code>
+            </div>
+        </div>
+    </div>
+
+    <script src="/dashboard-auto.js"></script>
+</body>
+</html>

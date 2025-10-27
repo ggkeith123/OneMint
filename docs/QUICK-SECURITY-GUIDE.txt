@@ -1,0 +1,153 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                 QUICK SECURITY REFERENCE                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🔐 PRIVATE KEY SECURITY - VISUAL GUIDE
+
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ WRONG WAY (Exposed!):
+
+Your Code
+    ↓
+  .env file with PRIVATE_KEY
+    ↓
+git add -A  ← DANGER!
+    ↓
+git commit
+    ↓
+git push → GitHub (PUBLIC!) → 🚨 KEY EXPOSED! 🚨
+    ↓
+Bots find it in seconds → Your wallet drained → 💸 Money GONE!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ RIGHT WAY (Secure!):
+
+Your Code
+    ↓
+.gitignore (blocks .env)
+    ↓
+.env (LOCAL ONLY, never committed)
+    ↓
+git add .gitignore .env.example (but NOT .env)
+    ↓
+git commit → git push → GitHub
+    ↓
+Railway Dashboard → Set Environment Variables (secure!)
+    ↓
+Railway uses variables → 🔒 Private key SAFE!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 CHECKLIST (Print this!)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Before EVERY git push:
+
+□ Run: git status
+□ Confirm .env is NOT listed
+□ Run: git diff HEAD  
+□ Confirm no private keys visible
+□ If unsure, DON'T PUSH!
+
+Environment Setup:
+
+□ .gitignore created FIRST
+□ .gitignore includes .env
+□ .env created locally
+□ .env.example committed (safe template)
+□ Real values only in Railway
+
+Railway Setup:
+
+□ Variables tab → Add all variables
+□ Private key added securely
+□ Saved and redeployed
+□ Tested with curl /health
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 EMERGENCY: IF KEY EXPOSED
+
+═══════════════════════════════════════════════════════════════════════════════
+
+DO THIS IMMEDIATELY (< 5 minutes):
+
+1. Open MetaMask
+2. Send ALL funds to new wallet NOW
+3. Transfer contract ownership NOW
+4. Update Railway with new key
+5. Create new GitHub repo (don't "fix" old one)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+💡 SIMPLE RULES
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Private key = Bank password
+2. .env file = Local only
+3. .gitignore = First defense
+4. Railway variables = Secure storage
+5. git status = Always check
+6. When in doubt = Don't push
+
+Remember: Once exposed, ALWAYS compromised!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📁 FILE LOCATIONS (Where things go)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+LOCAL MACHINE:
+├─ .gitignore ✅ (commit this)
+├─ .env.example ✅ (commit this)
+├─ .env ❌ (NEVER commit - local only!)
+├─ server-automatic.js ✅ (commit this)
+├─ package.json ✅ (commit this)
+└─ public/ ✅ (commit this)
+
+GITHUB:
+├─ .gitignore ✅
+├─ .env.example ✅
+├─ .env ❌ (should NOT be here!)
+├─ server-automatic.js ✅
+├─ package.json ✅
+└─ public/ ✅
+
+RAILWAY:
+├─ All code from GitHub ✅
+└─ Variables tab:
+    ├─ CONTRACT_ADDRESS ✅
+    ├─ PRIVATE_KEY ✅ (secure!)
+    ├─ USDC_PAYMENT_ADDRESS ✅
+    ├─ BASE_RPC_URL ✅
+    └─ PORT ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 TLDR (Too Long Didn't Read)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Create .gitignore with .env in it
+2. Create .env locally (NEVER push to GitHub)
+3. Commit code (without .env)
+4. Set variables in Railway dashboard
+5. Always check git status before pushing
+
+Your private key should ONLY exist in:
+✅ Your local .env (gitignored)
+✅ Railway environment variables (secure)
+
+NEVER in:
+❌ GitHub
+❌ Email
+❌ Chat
+❌ Screenshots
+❌ Code files
+
+═══════════════════════════════════════════════════════════════════════════════

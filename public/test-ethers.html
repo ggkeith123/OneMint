@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ethers.js</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🔧 Ethers.js Test Page</h1>
+        <p>This page tests if ethers.js is loading correctly.</p>
+        
+        <div id="results">
+            <h2>Test Results:</h2>
+            <div id="test-output"></div>
+        </div>
+
+        <button onclick="runTests()">Run Tests</button>
+    </div>
+
+    <!-- Load Ethers.js from CDN -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+
+    <script>
+        function addResult(message, isSuccess) {
+            const output = document.getElementById('test-output');
+            const div = document.createElement('div');
+            div.className = isSuccess ? 'success' : 'error';
+            div.textContent = (isSuccess ? '✅ ' : '❌ ') + message;
+            output.appendChild(div);
+        }
+
+        function runTests() {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '';
+
+            // Test 1: Check if ethers exists
+            if (typeof ethers !== 'undefined') {
+                addResult('Ethers.js is loaded!', true);
+            } else {
+                addResult('Ethers.js NOT loaded!', false);
+                return;
+            }
+
+            // Test 2: Check ethers.providers
+            if (ethers.providers) {
+                addResult('ethers.providers exists', true);
+            } else {
+                addResult('ethers.providers NOT found', false);
+            }
+
+            // Test 3: Check ethers.utils
+            if (ethers.utils) {
+                addResult('ethers.utils exists', true);
+            } else {
+                addResult('ethers.utils NOT found', false);
+            }
+
+            // Test 4: Check ethers.Contract
+            if (ethers.Contract) {
+                addResult('ethers.Contract exists', true);
+            } else {
+                addResult('ethers.Contract NOT found', false);
+            }
+
+            // Test 5: Try to create a provider
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    addResult('Can create Web3Provider', true);
+                } else {
+                    addResult('MetaMask not detected (that\'s OK)', true);
+                }
+            } catch (error) {
+                addResult('Cannot create Web3Provider: ' + error.message, false);
+            }
+
+            // Test 6: Try parseUnits
+            try {
+                const amount = ethers.utils.parseUnits('1', 6);
+                addResult('Can use ethers.utils.parseUnits: ' + amount.toString(), true);
+            } catch (error) {
+                addResult('Cannot use parseUnits: ' + error.message, false);
+            }
+
+            // Display ethers version
+            if (ethers.version) {
+                addResult('Ethers version: ' + ethers.version, true);
+            }
+
+            // Show what's available
+            const methods = Object.keys(ethers);
+            const methodsDiv = document.createElement('div');
+            methodsDiv.innerHTML = '<h3>Available ethers methods:</h3><pre>' + 
+                JSON.stringify(methods, null, 2) + '</pre>';
+            output.appendChild(methodsDiv);
+        }
+
+        // Run tests automatically on page load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "name": "x402rocks-automatic-minting",
+  "version": "4.0.0",
+  "description": "Automatic USDC token minting platform with x402 protocol",
+  "type": "module",
+  "main": "server-automatic.js",
+  "scripts": {
+    "start": "node server-automatic.js",
+    "dev": "node server-automatic.js"
+  },
+  "keywords": [
+    "x402",
+    "blockchain",
+    "tokens",
+    "USDC",
+    "Base",
+    "automatic"
+  ],
+  "author": "x402rocks",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.9.0",
+    "express": "^4.18.2",
+    "thirdweb": "^5.110.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

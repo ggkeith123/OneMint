@@ -1,0 +1,374 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    SAFE DEPLOYMENT GUIDE                                     ║
+║          How to Deploy WITHOUT Exposing Private Keys                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+⚠️  CRITICAL: Your private key must NEVER be committed to GitHub!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 WHY THIS MATTERS
+
+═══════════════════════════════════════════════════════════════════════════════
+
+If your private key is exposed:
+❌ Anyone can steal all funds from your wallet
+❌ Anyone can drain your contract
+❌ Anyone can impersonate you
+❌ Cannot be undone - key is permanently compromised
+
+Even if you delete the commit:
+❌ Git history still contains it
+❌ GitHub archives still have it
+❌ Bots scan GitHub for exposed keys 24/7
+❌ Your funds can be stolen in minutes
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ SAFE DEPLOYMENT PROCESS
+
+═══════════════════════════════════════════════════════════════════════════════
+
+STEP 1: Setup .gitignore
+────────────────────────────────────────────────────────────────────────────
+
+Create .gitignore file (already created for you!):
+
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.production
+
+This prevents .env from being committed to git.
+
+VERIFY IT WORKS:
+────────────────────────────────────────────────────────────────────────────
+
+git status
+
+You should NOT see .env in the list!
+If you do, .gitignore is not working.
+
+STEP 2: Create Local .env File
+────────────────────────────────────────────────────────────────────────────
+
+1. Copy the example:
+   cp .env.example .env
+
+2. Edit .env with your real values:
+   CONTRACT_ADDRESS=0xYourActualContractAddress
+   PRIVATE_KEY=0xYourActualPrivateKey
+   USDC_PAYMENT_ADDRESS=0xYourActualWallet
+   BASE_RPC_URL=https://mainnet.base.org
+   PORT=3000
+
+3. Keep this file LOCAL ONLY - never commit it!
+
+STEP 3: Commit Code (Without .env!)
+────────────────────────────────────────────────────────────────────────────
+
+git add .gitignore
+git add .env.example
+git add server-automatic.js
+git add public/
+git add contracts/
+git add package.json
+git commit -m "Add x402rocks automatic minting"
+git push origin main
+
+⚠️  DO NOT run: git add .env
+⚠️  DO NOT run: git add -A (adds everything including .env)
+
+VERIFY BEFORE PUSHING:
+────────────────────────────────────────────────────────────────────────────
+
+git diff HEAD
+
+Check that .env is NOT in the diff!
+
+STEP 4: Deploy to Railway with Environment Variables
+────────────────────────────────────────────────────────────────────────────
+
+Railway allows you to set environment variables securely WITHOUT putting
+them in your code!
+
+A. Go to Railway dashboard
+
+B. Select your project
+
+C. Go to "Variables" tab
+
+D. Add each variable:
+   
+   Variable Name: CONTRACT_ADDRESS
+   Value: 0xYourActualContractAddress
+   
+   Variable Name: PRIVATE_KEY
+   Value: 0xYourActualPrivateKey
+   
+   Variable Name: USDC_PAYMENT_ADDRESS
+   Value: 0xYourActualWallet
+   
+   Variable Name: BASE_RPC_URL
+   Value: https://mainnet.base.org
+   
+   Variable Name: PORT
+   Value: 3000
+
+E. Save all variables
+
+F. Railway will automatically redeploy with these variables!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔒 ADDITIONAL SECURITY BEST PRACTICES
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1. USE A DEDICATED WALLET FOR MINTING
+────────────────────────────────────────────────────────────────────────────
+
+Don't use your main wallet!
+
+Create a new wallet specifically for this project:
+✅ Only fund it with enough ETH for gas (~$10-20)
+✅ Only give it minting permissions
+✅ If compromised, limited damage
+
+How to create dedicated wallet:
+1. Create new MetaMask account
+2. Transfer small amount of ETH (for gas)
+3. Use this wallet's private key in .env
+4. Make this wallet the contract owner
+
+2. USE HARDWARE WALLET FOR CONTRACT OWNERSHIP
+────────────────────────────────────────────────────────────────────────────
+
+For contract deployment and ownership:
+✅ Use hardware wallet (Ledger, Trezor)
+✅ Store private key in hardware wallet
+✅ Only sign transactions through hardware wallet
+
+For backend minting:
+✅ Use dedicated software wallet (as above)
+✅ Give it only mintTo() permission
+✅ Cannot transfer ownership or other admin functions
+
+3. MONITOR YOUR WALLET
+────────────────────────────────────────────────────────────────────────────
+
+Set up alerts:
+✅ Use Etherscan alerts for your wallet
+✅ Monitor for unexpected transactions
+✅ Set up balance change notifications
+
+4. ROTATE KEYS REGULARLY
+────────────────────────────────────────────────────────────────────────────
+
+Every few months:
+✅ Create new minting wallet
+✅ Update contract to use new wallet
+✅ Update Railway environment variables
+✅ Disable old wallet
+
+5. USE RATE LIMITING
+────────────────────────────────────────────────────────────────────────────
+
+In your code, add rate limits:
+✅ Max mints per hour
+✅ Max mints per day
+✅ Alert if exceeded
+
+6. AUDIT REGULARLY
+────────────────────────────────────────────────────────────────────────────
+
+Weekly checks:
+✅ Review minting transactions
+✅ Check for suspicious activity
+✅ Verify balances
+✅ Review logs
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚫 WHAT NEVER TO DO
+
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ NEVER commit .env to git
+❌ NEVER hardcode private keys in code
+❌ NEVER share .env file
+❌ NEVER send private key in email/chat
+❌ NEVER store private key in cloud storage
+❌ NEVER put private key in frontend code
+❌ NEVER screenshot private key
+❌ NEVER save private key in browser
+❌ NEVER use same wallet for multiple purposes
+❌ NEVER store large amounts in hot wallet
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔐 IF PRIVATE KEY IS COMPROMISED
+
+═══════════════════════════════════════════════════════════════════════════════
+
+If you accidentally exposed your private key:
+
+IMMEDIATE ACTIONS (Within minutes):
+────────────────────────────────────────────────────────────────────────────
+
+1. Transfer all funds OUT of compromised wallet immediately
+   - Send to new, safe wallet
+   - Do this FIRST before anything else
+
+2. If it's the contract owner wallet:
+   - Transfer contract ownership to new wallet immediately
+   - Use transferOwnership() function
+
+3. Update all services:
+   - Generate new wallet
+   - Update Railway environment variables
+   - Update any other services using this wallet
+
+4. Remove from git history:
+   - If committed to git, consider repo as compromised
+   - Create new repo, copy code, DO NOT copy git history
+   - Never try to "clean" git history - just start fresh
+
+5. Monitor compromised wallet:
+   - Watch for malicious activity
+   - Set up alerts
+
+PREVENTION FOR NEXT TIME:
+────────────────────────────────────────────────────────────────────────────
+
+✅ Use .gitignore FIRST before creating .env
+✅ Always check git status before committing
+✅ Never use git add -A or git add .
+✅ Use dedicated wallets with minimal funds
+✅ Set up 2FA everywhere possible
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 DEPLOYMENT CHECKLIST
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Before deploying, verify:
+
+Local Setup:
+□ .gitignore file exists
+□ .gitignore includes .env
+□ .env file created locally
+□ .env file populated with real values
+□ git status does NOT show .env
+□ .env.example committed (without real values)
+
+Code Review:
+□ No hardcoded private keys anywhere
+□ No hardcoded wallet addresses
+□ All sensitive data from environment variables
+□ Code reads from process.env
+
+Git:
+□ .env NOT in git history
+□ Only public files committed
+□ Verified with git log
+□ Verified with git diff
+
+Railway:
+□ All environment variables set
+□ Variables marked as secret/hidden
+□ Deployment successful
+□ Logs show no errors
+□ Can connect to deployed service
+
+Security:
+□ Using dedicated wallet for minting
+□ Wallet has minimal funds (just gas)
+□ Main wallet NOT exposed
+□ Hardware wallet used for contract ownership
+□ Monitoring set up
+
+Testing:
+□ Test minting works
+□ Check logs for private key leaks
+□ Verify tokens minted correctly
+□ Check wallet balances
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📝 RAILWAY ENVIRONMENT VARIABLES SETUP
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Detailed Railway Setup:
+
+1. Login to Railway: https://railway.app
+
+2. Select your project (or create new)
+
+3. Click on your service
+
+4. Click "Variables" tab in sidebar
+
+5. Click "Add Variable" or "Raw Editor"
+
+6. In Raw Editor, paste (with YOUR actual values):
+
+CONTRACT_ADDRESS=0xYourActualContractAddressHere
+PRIVATE_KEY=0xYourActualPrivateKeyHere
+USDC_PAYMENT_ADDRESS=0xYourActualWalletHere
+BASE_RPC_URL=https://mainnet.base.org
+PORT=3000
+
+7. Click "Add" or "Save"
+
+8. Railway automatically redeploys
+
+9. Check logs for "✅ USDC payment monitoring active!"
+
+VERIFY IT WORKS:
+────────────────────────────────────────────────────────────────────────────
+
+curl https://your-app.railway.app/health
+
+Should return:
+{
+  "status": "healthy",
+  "paymentMethod": "USDC automatic",
+  "monitoring": "active",
+  "contract": "0xYour...",
+  "chain": "Base Mainnet"
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ SUMMARY
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Safe deployment process:
+
+1. Create .gitignore FIRST
+2. Create .env locally (NEVER commit)
+3. Add variables to Railway (secure!)
+4. Test deployment
+5. Monitor regularly
+
+Your private key:
+✅ Stays in Railway (secure)
+✅ Never in GitHub (safe)
+✅ Only in local .env (gitignored)
+✅ Protected by best practices
+
+Remember:
+🔒 Private key = Money access
+🔒 Expose it = Lose everything
+🔒 Keep it secret = Stay safe
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Need help? Check Railway docs:
+https://docs.railway.app/develop/variables
+
+═══════════════════════════════════════════════════════════════════════════════

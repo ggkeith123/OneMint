@@ -1,0 +1,434 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    🔧 TROUBLESHOOTING GUIDE                                  ║
+║              Common Errors and How to Fix Them                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+This guide covers ALL common errors you might encounter!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "ethers is not defined"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Ethers.js library not loaded in browser
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+✅ FIXED IN LATEST VERSION!
+
+If you still see this error:
+
+1. Re-download the package (latest version)
+2. OR manually add to public/index.html:
+
+Add this line in the <head> section (after <title>):
+<script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+
+Should look like:
+<head>
+    <meta charset="UTF-8">
+    <title>x402rocks</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+</head>
+
+3. Save and refresh browser (Ctrl+F5)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Minting failed: insufficient funds"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Not enough USDC or ETH in your wallet
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+You need BOTH:
+1. 1 USDC (or more) - for the mint payment
+2. ~$0.02 ETH - for gas fees
+
+How to get USDC on Base:
+1. Buy ETH on Coinbase
+2. Bridge to Base: https://bridge.base.org
+3. Swap ETH for USDC on Uniswap
+
+How to get ETH for gas:
+1. Bridge from Ethereum mainnet
+2. Or buy directly on Base-supported exchanges
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Please install MetaMask"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: MetaMask not installed or not detected
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Install MetaMask:
+   - Chrome: https://metamask.io/download
+   - Firefox: https://metamask.io/download
+   - Brave: https://metamask.io/download
+
+2. Create or import wallet
+
+3. Add Base Mainnet:
+   - Network name: Base Mainnet
+   - RPC URL: https://mainnet.base.org
+   - Chain ID: 8453
+   - Currency: ETH
+   - Block explorer: https://basescan.org
+
+4. Refresh page and try again
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Contract not deployed yet"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: CONTRACT_ADDRESS not set or contract not deployed
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Deploy contract first using Remix:
+   - Go to https://remix.ethereum.org
+   - Upload contracts/X402RocksToken-USDC.sol
+   - Compile (Solidity 0.8.20)
+   - Deploy to Base Mainnet
+   - Copy contract address
+
+2. Add to .env file:
+   CONTRACT_ADDRESS=0xYourActualContractAddress
+
+3. If on Railway, add to Variables tab
+
+4. Restart server (npm start or redeploy)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Transaction cancelled by user"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: You clicked "Reject" in MetaMask
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+This is normal! Just try again and click "Confirm" instead.
+
+You need to approve TWO transactions:
+1. Approve USDC spending
+2. Mint tokens
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Failed to fetch"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Server not running or wrong URL
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+Local testing:
+1. Make sure server is running: npm start
+2. Check console for "Server running on..."
+3. Make sure you're visiting the right URL
+
+Railway deployment:
+1. Check deployment status in Railway
+2. Check logs for errors
+3. Verify all environment variables are set
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "npm is not recognized" (Windows)
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Node.js not installed or not in PATH
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Install Node.js: https://nodejs.org
+2. Download LTS version
+3. Run installer (accept all defaults)
+4. Close and reopen PowerShell
+5. Test: node --version
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Cannot run scripts" (Windows PowerShell)
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: PowerShell execution policy restriction
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Open PowerShell as Administrator:
+   - Search "PowerShell"
+   - Right-click
+   - "Run as administrator"
+
+2. Run this command:
+   Set-ExecutionPolicy RemoteSigned
+
+3. Type "Y" and press Enter
+
+4. Close and reopen PowerShell (normal, not admin)
+
+5. Try again
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Port 3000 already in use"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Another app is using port 3000
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+Option 1: Use different port
+1. Edit .env
+2. Change PORT=3000 to PORT=3001
+3. Save and restart
+
+Option 2: Kill process on port 3000 (Windows)
+1. Open PowerShell as Admin
+2. Run: netstat -ano | findstr :3000
+3. Note the PID (last number)
+4. Run: taskkill /PID [number] /F
+
+Option 3: Kill process (Mac/Linux)
+1. Run: lsof -ti:3000 | xargs kill -9
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: ".env file not found"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: .env file not created
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+Windows:
+copy .env.example .env
+notepad .env
+
+Mac/Linux:
+cp .env.example .env
+nano .env
+
+Then add your values and save!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Payment not detected"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Various reasons - let's debug!
+
+CHECK:
+────────────────────────────────────────────────────────────────────────────
+
+1. Did you send to the right address?
+   - Check the address shown in dashboard
+   - Compare with your transaction
+
+2. Did you send 1 USDC (not ETH)?
+   - Token: USDC
+   - Network: Base Mainnet
+   - Amount: 1 USDC or more
+
+3. Is transaction confirmed?
+   - Check on https://basescan.org
+   - Wait for 1-2 confirmations
+
+4. Is monitoring active?
+   - Check server logs
+   - Should see "USDC payment monitoring active!"
+
+5. Check backend logs:
+   - Railway: View logs in dashboard
+   - Local: Check console output
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Wrong network" or "Chain not supported"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: MetaMask on wrong network
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Open MetaMask
+2. Click network dropdown (top)
+3. Select "Base Mainnet"
+
+If Base not listed:
+1. Click "Add network"
+2. Add manually:
+   - Network: Base Mainnet
+   - RPC: https://mainnet.base.org
+   - Chain ID: 8453
+   - Symbol: ETH
+   - Explorer: https://basescan.org
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Private key exposed" / Git shows .env
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: .env file about to be committed to Git
+
+FIX IMMEDIATELY:
+────────────────────────────────────────────────────────────────────────────
+
+1. STOP! Don't push!
+
+2. Check .gitignore exists:
+   cat .gitignore  (should show ".env")
+
+3. Remove from staging:
+   git reset HEAD .env
+
+4. Verify:
+   git status  (should NOT show .env)
+
+5. If already pushed:
+   - Generate NEW wallet immediately
+   - Transfer all funds to new wallet
+   - Update .env with new private key
+   - Update Railway variables
+   - Delete old repo and create new one
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Module not found"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Dependencies not installed
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+rm -rf node_modules package-lock.json
+npm install
+
+Or on Windows:
+rmdir /s /q node_modules
+del package-lock.json
+npm install
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: "Nonce too high" or "Replacement transaction underpriced"
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Transaction nonce issue
+
+FIX:
+────────────────────────────────────────────────────────────────────────────
+
+1. Reset MetaMask:
+   - Settings → Advanced
+   - Scroll to "Clear activity tab data"
+   - Click "Clear"
+
+2. Restart browser
+
+3. Try again
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 ERROR: Railway deployment fails
+═══════════════════════════════════════════════════════════════════════════════
+
+CAUSE: Various deployment issues
+
+CHECK:
+────────────────────────────────────────────────────────────────────────────
+
+1. All environment variables set?
+   - CONTRACT_ADDRESS
+   - PRIVATE_KEY
+   - USDC_PAYMENT_ADDRESS
+   - BASE_RPC_URL
+   - PORT
+
+2. .env NOT committed to GitHub?
+   - Check your repo files
+   - Should only see .env.example
+
+3. Check Railway logs:
+   - Look for error messages
+   - Common: missing variables, syntax errors
+
+4. Verify package.json:
+   - Should have "start" script
+   - Should list all dependencies
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🆘 STILL STUCK?
+═══════════════════════════════════════════════════════════════════════════════
+
+Debug checklist:
+────────────────────────────────────────────────────────────────────────────
+
+□ Node.js installed? (node --version)
+□ Dependencies installed? (npm install)
+□ .env file created? (copy .env.example .env)
+□ .env has real values? (not placeholder text)
+□ Contract deployed? (check Remix)
+□ CONTRACT_ADDRESS in .env? (0x...)
+□ Server running? (npm start)
+□ Can see dashboard? (http://localhost:3000)
+□ MetaMask installed? 
+□ MetaMask on Base Mainnet?
+□ Have USDC on Base?
+□ Have ETH for gas?
+□ .env NOT in Git? (git status)
+
+Check all boxes! One of these is usually the issue!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📝 HOW TO GET HELP
+═══════════════════════════════════════════════════════════════════════════════
+
+When asking for help, provide:
+
+1. Error message (exact text)
+2. What you were trying to do
+3. Which step of deployment
+4. Browser console errors (F12 → Console)
+5. Server logs (if running locally)
+6. Railway logs (if deployed)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ PREVENTION TIPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Always test locally first (npm start)
+2. Verify .env has real values (not placeholders)
+3. Check .gitignore before committing
+4. Use Railway variables (not .env in production)
+5. Keep backup of contract address
+6. Test with small amounts first
+7. Read error messages carefully!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Most errors are quick fixes! Don't panic! 🦴
+
+═══════════════════════════════════════════════════════════════════════════════
