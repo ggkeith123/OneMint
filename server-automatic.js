@@ -19,7 +19,7 @@ console.log('');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use('/dashboard', express.static('public'));
+app.use(express.static('public'));
 
 // =============================================================================
 // BASE MAINNET + USDC CONFIGURATION
@@ -781,10 +781,26 @@ app.get('/api/payai-health', (req, res) => {
   });
 });
 
-// Root endpoint - returns 402 for x402scan
+// Root endpoint - smart routing for dashboard and x402scan
 app.get('/', (req, res) => {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   
+  // If request accepts JSON (x402scan, API clients), return 402
+  const acceptsJson = req.headers.accept && 
+                     (req.headers.accept.includes('application/json') || 
+                      req.headers.accept.includes('*/*') && !req.headers.accept.includes('text/html'));
+  
+  // Check user agent - if it's a browser, serve HTML
+  const isBrowser = req.headers['user-agent'] && 
+                    req.headers['user-agent'].includes('Mozilla');
+  
+  // Serve dashboard for browsers, 402 for API/x402scan
+  if (isBrowser && !acceptsJson) {
+    // Serve dashboard HTML
+    return res.sendFile('index.html', { root: './public' });
+  }
+  
+  // Return 402 for x402scan and API clients
   res.status(402).json({
     x402Version: 1,
     error: "Payment required",
@@ -819,7 +835,7 @@ app.get('/', (req, res) => {
           service: 'x402rocks',
           contractAddress: CONTRACT_ADDRESS,
           chainId: 8453,
-          dashboardUrl: `${baseUrl}/dashboard`,
+          dashboardUrl: baseUrl,
           infoUrl: `${baseUrl}/api/info`
         }
       }
