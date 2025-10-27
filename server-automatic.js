@@ -19,7 +19,7 @@ console.log('');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use('/dashboard', express.static('public'));
 
 // =============================================================================
 // BASE MAINNET + USDC CONFIGURATION
@@ -778,6 +778,52 @@ app.get('/api/payai-health', (req, res) => {
     timestamp: Date.now(),
     monitoring: CONTRACT_ADDRESS && USDC_PAYMENT_ADDRESS ? 'active' : 'inactive',
     contract: CONTRACT_ADDRESS ? 'deployed' : 'not deployed'
+  });
+});
+
+// Root endpoint - returns 402 for x402scan
+app.get('/', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  
+  res.status(402).json({
+    x402Version: 1,
+    error: "Payment required",
+    accepts: [
+      {
+        scheme: "exact",
+        network: "base",
+        maxAmountRequired: "1000000",
+        resource: "/api/request-mint",
+        description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
+        mimeType: "application/json",
+        payTo: USDC_PAYMENT_ADDRESS,
+        maxTimeoutSeconds: 1800,
+        asset: USDC_ADDRESS,
+        
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "POST",
+            bodyType: "json",
+            bodyFields: {
+              address: {
+                type: "string",
+                required: true,
+                description: "Ethereum address to receive tokens"
+              }
+            }
+          }
+        },
+        
+        extra: {
+          service: 'x402rocks',
+          contractAddress: CONTRACT_ADDRESS,
+          chainId: 8453,
+          dashboardUrl: `${baseUrl}/dashboard`,
+          infoUrl: `${baseUrl}/api/info`
+        }
+      }
+    ]
   });
 });
 
