@@ -356,12 +356,32 @@ class AutomaticUSDCMonitor {
       mintData.completedAt = Date.now();
       mintData.mintBlockNumber = receipt.blockNumber;
 
-      return {
-        success: true,
-        paymentTxHash,
-        mintTxHash: tx.hash,
-        blockNumber: receipt.blockNumber
-      };
+      // ✅ ADD THIS - Auto-deliver signal data
+  const signalData = {
+    signal: "BUY",
+    confidence: 0.95,
+    timestamp: Date.now(),
+    analysis: {
+      symbol: "X402",
+      price: "Bullish trend detected",
+      recommendation: "Strong buy signal",
+      marketCondition: "Favorable"
+    },
+    deliveredAt: Date.now(),
+    paymentTxHash: paymentTxHash,
+    userAddress: userAddress
+  };
+  
+  deliveredSignals.set(paymentId, signalData);
+  console.log(`📊 Signal data auto-delivered for payment: ${paymentId}`);
+
+  return {
+    success: true,
+    paymentTxHash,
+    mintTxHash: tx.hash,
+    blockNumber: receipt.blockNumber,
+    signalDelivered: true
+  };
 
     } catch (error) {
       console.error('Mint transaction failed:', error);
@@ -402,6 +422,7 @@ class AutomaticUSDCMonitor {
 
 // Initialize monitor
 const monitor = new AutomaticUSDCMonitor();
+const deliveredSignals = new Map(); // paymentId -> signal data
 
 // =============================================================================
 // API ENDPOINTS
@@ -539,7 +560,9 @@ app.get('/api/info', async (req, res) => {
         balance: `${baseUrl}/api/balance/:address`,
         payaiInfo: `${baseUrl}/api/payai-info`,
         payaiMint: `${baseUrl}/api/payai-mint`,
-        payaiHealth: `${baseUrl}/api/payai-health`
+        payaiHealth: `${baseUrl}/api/payai-health`,
+        signal: `${baseUrl}/signal`,              // ✅ ADD THIS
+  signalStatus: `${baseUrl}/signal/status`  // ✅ ADD THIS
       },
       
       features: [
@@ -556,6 +579,88 @@ app.get('/api/info', async (req, res) => {
       message: error.message 
     });
   }
+});
+
+// Signal endpoint - returns 402, auto-delivers after payment
+app.get('/signal', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  
+  res.status(402).json({
+    x402Version: 1,
+    error: "Payment required",
+    accepts: [
+      {
+        scheme: "exact",
+        network: "base",
+        maxAmountRequired: "1000000",
+        resource: `${baseUrl}/signal`,
+        description: "Get AI trading signal for 1 USDC - auto-delivered after payment",
+        mimeType: "application/json",
+        payTo: USDC_PAYMENT_ADDRESS,
+        maxTimeoutSeconds: 1800,
+        asset: USDC_ADDRESS,
+        
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "GET"
+          },
+          output: {
+            type: "object",
+            properties: {
+              signal: { type: "string", description: "BUY/SELL/HOLD" },
+              confidence: { type: "number", description: "0-1 confidence score" },
+              timestamp: { type: "number" },
+              analysis: { type: "object" }
+            }
+          }
+        },
+        
+        extra: {
+          service: 'x402rocks AI Signal',
+          price: "1 USDC",
+          delivery: "automatic",
+          note: "Send 1 USDC to payment address. Signal data delivered automatically within 60 seconds.",
+          checkStatusUrl: `${baseUrl}/signal/status`
+        }
+      }
+    ]
+  });
+});
+
+// Check signal delivery status
+app.get('/signal/status', (req, res) => {
+  const { address } = req.query;
+  
+  if (!address) {
+    return res.status(400).json({
+      error: 'Address parameter required',
+      usage: '/signal/status?address=0x...'
+    });
+  }
+  
+  // Find payment for this address
+  let foundSignal = null;
+  for (const [paymentId, data] of monitor.pendingMints.entries()) {
+    if (data.userAddress === address.toLowerCase() && data.status === 'completed') {
+      foundSignal = deliveredSignals.get(paymentId);
+      if (foundSignal) break;
+    }
+  }
+  
+  if (!foundSignal) {
+    return res.json({
+      status: 'pending',
+      message: 'No signal delivered yet. Send 1 USDC to receive signal.',
+      paymentAddress: USDC_PAYMENT_ADDRESS
+    });
+  }
+  
+  // Return the signal data
+  res.json({
+    status: 'delivered',
+    signal: foundSignal
+  });
 });
 
 
@@ -834,50 +939,56 @@ app.get('/', (req, res) => {
 });
 
 // Also add dedicated 402 endpoint
-app.get('/.well-known/payment-required', (req, res) => {
+app.post('/.well-known/payment-required', (req, res) => {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   
-  res.status(402).json({
-    x402Version: 1,
-    error: "Payment required",
-    accepts: [
-      {
-        scheme: "exact",
-        network: "base",
-        maxAmountRequired: "1000000",
-        resource: `${baseUrl}/api/request-mint`,  // ✅ Full URL
-        description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
-        mimeType: "application/json",
-        payTo: USDC_PAYMENT_ADDRESS,
-        maxTimeoutSeconds: 1800,
-        asset: USDC_ADDRESS,
-        
-        outputSchema: {
-          input: {
-            type: "http",
-            method: "POST",
-            bodyType: "json",
-            bodyFields: {
-              address: {
-                type: "string",
-                required: true,
-                description: "Ethereum address to receive tokens"
-              }
-            }
-          }
-        },
-        
-        extra: {
-          service: 'x402rocks',
-          contractAddress: CONTRACT_ADDRESS,
-          chainId: 8453,
-          dashboardUrl: baseUrl,
-          infoUrl: `${baseUrl}/api/info`
-        }
-      }
-    ]
+  if (!CONTRACT_ADDRESS || !USDC_PAYMENT_ADDRESS) {
+    return res.status(503).json({
+      error: 'Service not ready'
+    });
+  }
+
+  // Return payment instructions without requiring address
+  res.json({
+    success: true,
+    message: "Send exactly 1 USDC to the payment address below. Tokens will be automatically minted to your wallet within 60 seconds.",
+    
+    payment: {
+      method: "USDC Transfer",
+      address: USDC_PAYMENT_ADDRESS,
+      amount: "1000000",
+      amountFormatted: "1 USDC",
+      token: USDC_ADDRESS,
+      tokenSymbol: "USDC",
+      network: "Base Mainnet",
+      chainId: 8453,
+      explorer: `https://basescan.org/address/${USDC_PAYMENT_ADDRESS}`
+    },
+    
+    receive: {
+      amount: "50000",
+      token: "X402",
+      contractAddress: CONTRACT_ADDRESS,
+      note: "Tokens minted to the address that sends USDC"
+    },
+    
+    automatic: true,
+    estimatedTime: "30-60 seconds",
+    
+    instructions: [
+      "1. Send exactly 1 USDC to the payment address",
+      "2. Our system automatically detects your payment",
+      "3. Tokens are minted to your wallet address",
+      "4. Done! Check your wallet in 30-60 seconds"
+    ],
+    
+    monitoring: {
+      automatic: true,
+      note: "No transaction hash submission needed"
+    }
   });
 });
+
 
 const PORT = process.env.PORT || 3000;
 
