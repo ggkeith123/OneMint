@@ -442,7 +442,7 @@ app.get('/api/info', async (req, res) => {
           scheme: "exact",
           network: "base",
           maxAmountRequired: "1000000",
-          resource: "/api/request-mint",
+          resource: `${baseUrl}/api/request-mint`,
           description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
           mimeType: "application/json",
           payTo: USDC_PAYMENT_ADDRESS,
@@ -795,7 +795,7 @@ app.get('/', (req, res) => {
           scheme: "exact",
           network: "base",
           maxAmountRequired: "1000000",
-          resource: "/api/request-mint",
+          resource: `${baseUrl}/api/request-mint`,
           description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
           mimeType: "application/json",
           payTo: USDC_PAYMENT_ADDRESS,
@@ -845,17 +845,34 @@ app.get('/.well-known/payment-required', (req, res) => {
         scheme: "exact",
         network: "base",
         maxAmountRequired: "1000000",
-        resource: "/api/request-mint",
+        resource: `${baseUrl}/api/request-mint`,  // ✅ Full URL
         description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
         mimeType: "application/json",
         payTo: USDC_PAYMENT_ADDRESS,
         maxTimeoutSeconds: 1800,
         asset: USDC_ADDRESS,
         
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "POST",
+            bodyType: "json",
+            bodyFields: {
+              address: {
+                type: "string",
+                required: true,
+                description: "Ethereum address to receive tokens"
+              }
+            }
+          }
+        },
+        
         extra: {
           service: 'x402rocks',
           contractAddress: CONTRACT_ADDRESS,
-          chainId: 8453
+          chainId: 8453,
+          dashboardUrl: baseUrl,
+          infoUrl: `${baseUrl}/api/info`
         }
       }
     ]
