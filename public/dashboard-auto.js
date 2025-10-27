@@ -144,76 +144,65 @@ async function mintDirectly() {
     }
 
     try {
-        showAlert('Preparing to mint... Please approve in MetaMask', 'info');
+        showAlert('Preparing to send USDC... Please approve in MetaMask', 'info');
 
-        // Get contract info
+        // Get payment info
         const infoResponse = await fetch(`${API_URL}/api/info`);
         const info = await infoResponse.json();
 
-        if (!info.contract || !info.contract.address || info.contract.address === 'Not deployed') {
-            showAlert('Contract not deployed yet. Please deploy the contract first.', 'error');
+        if (!info.payment || !info.payment.address) {
+            showAlert('Payment address not configured.', 'error');
             return;
         }
 
-        const contractAddress = info.contract.address;
+        const paymentAddress = info.payment.address;
         const usdcAddress = info.payment.tokenAddress;
 
         // Initialize ethers
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
 
-        // USDC contract
+        // USDC contract - only need transfer function
         const usdcABI = [
-            'function approve(address spender, uint256 amount) external returns (bool)',
-            'function allowance(address owner, address spender) external view returns (uint256)'
+            'function transfer(address to, uint256 amount) external returns (bool)'
         ];
         const usdcContract = new ethers.Contract(usdcAddress, usdcABI, signer);
 
-        // Token contract
-        const tokenABI = [
-            'function mint() external'
-        ];
-        const tokenContract = new ethers.Contract(contractAddress, tokenABI, signer);
-
-        // Check and approve USDC
-        showAlert('Step 1/2: Approving USDC...', 'info');
-        const allowance = await usdcContract.allowance(address, contractAddress);
-        const requiredAmount = ethers.utils.parseUnits('1', 6); // 1 USDC
-
-        if (allowance.lt(requiredAmount)) {
-            const approveTx = await usdcContract.approve(contractAddress, requiredAmount);
-            showAlert('Waiting for approval confirmation...', 'info');
-            await approveTx.wait();
-            showAlert('✅ USDC approved!', 'success');
-        }
-
-        // Mint tokens
-        showAlert('Step 2/2: Minting tokens... Please confirm in MetaMask', 'info');
-        const mintTx = await tokenContract.mint();
-        showAlert('Transaction sent! Waiting for confirmation...', 'info');
+        // Send 1 USDC directly to payment address
+        showAlert('Sending 1 USDC... Please confirm in MetaMask', 'info');
+        const amount = ethers.utils.parseUnits('1', 6); // 1 USDC (6 decimals)
+        const tx = await usdcContract.transfer(paymentAddress, amount);
         
-        const receipt = await mintTx.wait();
+        showAlert('USDC sent! Waiting for confirmation...', 'info');
+        const receipt = await tx.wait();
         
-        showAlert('🎉 SUCCESS! 50,000 tokens minted! TX: ' + receipt.transactionHash.slice(0, 10) + '...', 'success');
+        showAlert('🎉 SUCCESS! Payment confirmed! Tokens will be minted automatically in 30-60 seconds. TX: ' + receipt.transactionHash.slice(0, 10) + '...', 'success');
+        
+        // Show BaseScan link
+        console.log('View transaction: https://basescan.org/tx/' + receipt.transactionHash);
         
         // Refresh stats
         loadStats();
         
-        // Check balance
-        setTimeout(() => checkBalance(address), 2000);
+        // Check balance after delay (tokens mint automatically)
+        setTimeout(() => {
+            showAlert('Checking for minted tokens...', 'info');
+            checkBalance(address);
+        }, 45000); // Check after 45 seconds
 
     } catch (error) {
-        console.error('Mint error:', error);
+        console.error('Payment error:', error);
         
         if (error.code === 4001) {
             showAlert('Transaction cancelled by user', 'error');
         } else if (error.message.includes('insufficient funds')) {
             showAlert('Insufficient USDC balance or ETH for gas', 'error');
         } else {
-            showAlert('Minting failed: ' + error.message, 'error');
+            showAlert('Payment failed: ' + error.message, 'error');
         }
     }
 }
+
 
 // Get payment instructions (alternative method)
 async function getPaymentInstructions() {
