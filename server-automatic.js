@@ -583,7 +583,10 @@ app.get('/api/info', async (req, res) => {
 
 // Signal endpoint - returns 402, auto-delivers after payment
 app.get('/signal', (req, res) => {
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  // Force HTTPS for Railway deployment
+  const protocol = req.get('host').includes('railway.app') ? 'https' : req.protocol;
+  const baseUrl = `${protocol}://${req.get('host')}`;
+
   
   res.status(402).json({
     x402Version: 1,
@@ -617,12 +620,13 @@ app.get('/signal', (req, res) => {
         },
         
         extra: {
-          service: 'x402rocks AI Signal',
-          price: "1 USDC",
-          delivery: "automatic",
-          note: "Send 1 USDC to payment address. Signal data delivered automatically within 60 seconds.",
-          checkStatusUrl: `${baseUrl}/signal/status`
-        }
+  service: 'x402-Rocks',
+  price: "1 USDC",
+  delivery: "automatic",
+  note: "Send 1 USDC to payment address. 50000 x402-Rocks delivered automatically within 60 seconds.",
+  checkStatusUrl: `https://x402-rock.up.railway.app/signal/status`  // ✅ Hardcode HTTPS
+}
+
       }
     ]
   });
