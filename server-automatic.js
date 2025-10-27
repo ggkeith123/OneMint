@@ -6,6 +6,16 @@ import { ethers } from 'ethers';
 
 dotenv.config();
 
+// =============================================================================
+// DEBUG: Check environment variables on startup
+// =============================================================================
+console.log('🔍 Environment Variables Check:');
+console.log('CONTRACT_ADDRESS:', process.env.CONTRACT_ADDRESS || '❌ MISSING');
+console.log('USDC_PAYMENT_ADDRESS:', process.env.USDC_PAYMENT_ADDRESS || '❌ MISSING');
+console.log('PRIVATE_KEY:', process.env.PRIVATE_KEY ? '✅ Loaded' : '❌ MISSING');
+console.log('BASE_RPC_URL:', process.env.BASE_RPC_URL ? '✅ Loaded' : '⚠️  Using default');
+console.log('');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -26,6 +36,7 @@ const BASE_CONFIG = {
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
 const PRIVATE_KEY = process.env.PRIVATE_KEY || '';
 const USDC_PAYMENT_ADDRESS = process.env.USDC_PAYMENT_ADDRESS || '';
+const USDC_ADDRESS = BASE_CONFIG.usdcAddress;
 
 // Contract ABIs
 const CONTRACT_ABI = [
@@ -35,6 +46,7 @@ const CONTRACT_ABI = [
   'function remainingMints() external view returns (uint256)',
   'function USDC_PRICE() external view returns (uint256)',
   'function balanceOf(address account) external view returns (uint256)',
+  'function mintsPerAddress(address account) external view returns (uint256)',
   'event TokensMinted(address indexed recipient, uint256 tokenAmount, uint256 usdcPaid, uint256 mintNumber)'
 ];
 
@@ -173,7 +185,9 @@ class AutomaticUSDCMonitor {
 
     try {
       const currentBlock = await provider.getBlockNumber();
-      const fromBlock = currentBlock - 9;    // ✅ 9 blocks - within free tier limit
+      
+      // ⚡ ALCHEMY FREE TIER FIX: Only scan 9 blocks at a time
+      const fromBlock = currentBlock - 9;
 
       const filter = {
         address: this.usdcAddress,
@@ -183,7 +197,7 @@ class AutomaticUSDCMonitor {
           ethers.zeroPadValue(this.paymentAddress, 32)
         ],
         fromBlock: fromBlock,
-        toBlock: 'latest'
+        toBlock: currentBlock // ✅ Use currentBlock instead of 'latest'
       };
 
       const logs = await provider.getLogs(filter);
@@ -258,15 +272,26 @@ class AutomaticUSDCMonitor {
         // No pending request, but user paid - mint anyway!
         console.log('⚡ No pending request found, but payment received. Auto-minting...');
         
+        const autoPaymentId = 'auto-' + crypto.randomBytes(8).toString('hex');
+        
+        // Store it in pendingMints
+        this.pendingMints.set(autoPaymentId, {
+          userAddress: from,
+          timestamp: Date.now(),
+          status: 'payment_received',
+          txHash: txHash,
+          paidAt: Date.now(),
+          auto: true
+        });
+        
         this.mintQueue.push({
-          paymentId: 'auto-' + crypto.randomBytes(8).toString('hex'),
+          paymentId: autoPaymentId,
           userAddress: from,
           txHash
         });
         
         this.processMintQueue();
       }
-
     } catch (error) {
       console.error('Error handling USDC transfer:', error);
     }
@@ -280,218 +305,274 @@ class AutomaticUSDCMonitor {
     this.isProcessing = true;
 
     while (this.mintQueue.length > 0) {
-      const mintRequest = this.mintQueue.shift();
+      const item = this.mintQueue.shift();
       
       try {
-        console.log(`🔥 Minting tokens for ${mintRequest.userAddress}...`);
-        
-        const tx = await contract.mintTo(mintRequest.userAddress);
-        console.log(`📝 Mint transaction sent: ${tx.hash}`);
-        
-        const receipt = await tx.wait();
-        console.log('✅ Tokens minted! Block:', receipt.blockNumber);
-
-
-// Report to x402scan
-console.log('🔍 Attempting to report to x402scan...');
-try {
-    const x402scanUrl = process.env.X402_SCAN_REPORT_URL || 'https://x402scan.com/api/report';
-    
-    const reportData = {
-        paymentId: mintRequest.paymentId,  // ✅ Correct variable
-        mintTxHash: tx.hash,               // ✅ Mint transaction hash
-        status: 'completed',
-        service: 'x402rocks-automatic',
-        amount: '1.00',
-        currency: 'USDC',
-        network: 'base',
-        chainId: 8453,
-        timestamp: Date.now(),
-        userAddress: mintRequest.userAddress,  // ✅ Correct variable
-        contractAddress: CONTRACT_ADDRESS,
-        blockNumber: receipt.blockNumber
-    };
-    
-    console.log('📤 Sending to x402scan:', reportData);
-    
-    const response = await fetch(x402scanUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reportData)
-    });
-    
-    const responseText = await response.text();
-    console.log('📥 x402scan response:', response.status, responseText);
-    console.log('✅ Reported to x402scan');
-} catch (error) {
-    console.error('❌ Failed to report to x402scan:', error.message);
-}
-
-// Update status
-if (this.pendingMints.has(mintRequest.paymentId)) {
-
-
-          mintData.mintTxHash = receipt.hash;
-          mintData.completedAt = Date.now();
-        }
-
+        await this.mintTokens(item.paymentId, item.userAddress, item.txHash);
       } catch (error) {
-        console.error(`❌ Failed to mint for ${mintRequest.userAddress}:`, error.message);
+        console.error('Error minting tokens:', error);
         
-        // Put back in queue to retry later
-        this.mintQueue.push(mintRequest);
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 30000));
+        // Update status
+        const mintData = this.pendingMints.get(item.paymentId);
+        if (mintData) {
+          mintData.status = 'mint_failed';
+          mintData.error = error.message;
+        }
       }
     }
 
     this.isProcessing = false;
   }
 
-  getPaymentStatus(paymentId) {
-    const mintData = this.pendingMints.get(paymentId);
-    
-    if (!mintData) {
-      return {
-        found: false,
-        error: 'Payment ID not found'
-      };
+  async mintTokens(paymentId, userAddress, paymentTxHash) {
+    if (!contract) {
+      throw new Error('Contract not initialized');
     }
 
-    if (Date.now() - mintData.timestamp > 30 * 60 * 1000) {
+    console.log(`🎨 Minting tokens for ${userAddress}...`);
+
+    const mintData = this.pendingMints.get(paymentId);
+    if (!mintData) {
+      throw new Error('Payment data not found');
+    }
+
+    // Update status
+    mintData.status = 'minting';
+    mintData.mintingAt = Date.now();
+
+    try {
+      // Call mintTo function
+      const tx = await contract.mintTo(userAddress);
+      console.log(`📤 Mint transaction sent: ${tx.hash}`);
+      
+      mintData.mintTxHash = tx.hash;
+
+      // Wait for confirmation
+      const receipt = await tx.wait();
+      console.log(`✅ Mint successful! Block: ${receipt.blockNumber}`);
+
+      // Update final status
+      mintData.status = 'completed';
+      mintData.completedAt = Date.now();
+      mintData.mintBlockNumber = receipt.blockNumber;
+
       return {
-        found: true,
-        status: 'expired',
-        message: 'Payment window expired'
+        success: true,
+        paymentTxHash,
+        mintTxHash: tx.hash,
+        blockNumber: receipt.blockNumber
+      };
+
+    } catch (error) {
+      console.error('Mint transaction failed:', error);
+      mintData.status = 'mint_failed';
+      mintData.error = error.message;
+      throw error;
+    }
+  }
+
+  getPaymentStatus(paymentId) {
+    const data = this.pendingMints.get(paymentId);
+    
+    if (!data) {
+      return {
+        found: false,
+        paymentId: paymentId,
+        message: 'Payment ID not found'
       };
     }
 
     return {
       found: true,
-      status: mintData.status,
-      userAddress: mintData.userAddress,
-      paymentTxHash: mintData.txHash,
-      mintTxHash: mintData.mintTxHash,
-      timestamp: mintData.timestamp,
-      paidAt: mintData.paidAt,
-      completedAt: mintData.completedAt
+      paymentId: paymentId,
+      userAddress: data.userAddress,
+      status: data.status,
+      timestamp: data.timestamp,
+      txHash: data.txHash,
+      mintTxHash: data.mintTxHash,
+      paidAt: data.paidAt,
+      mintingAt: data.mintingAt,
+      completedAt: data.completedAt,
+      blockNumber: data.mintBlockNumber,
+      error: data.error,
+      explorerUrl: data.mintTxHash ? `${BASE_CONFIG.explorer}/tx/${data.mintTxHash}` : undefined
     };
-  }
-
-  cleanupExpired() {
-    const now = Date.now();
-    for (const [paymentId, data] of this.pendingMints) {
-      if (now - data.timestamp > 30 * 60 * 1000) {
-        this.pendingMints.delete(paymentId);
-      }
-    }
-    
-    // Clean up old tx hashes (keep last 1000)
-    if (this.processedTxHashes.size > 1000) {
-      const arr = Array.from(this.processedTxHashes);
-      this.processedTxHashes = new Set(arr.slice(-1000));
-    }
   }
 }
 
+// Initialize monitor
 const monitor = new AutomaticUSDCMonitor();
-
-// Cleanup every 5 minutes
-setInterval(() => monitor.cleanupExpired(), 5 * 60000);
 
 // =============================================================================
 // API ENDPOINTS
 // =============================================================================
 
-app.get('/api/payai-info', (req, res) => {
-    try {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        
-        res.json({
-            // Service identification
-            service: 'x402rocks Token Minting',
-            description: 'Mint 50,000 x402rocks tokens for 1 USDC on Base mainnet',
-            protocol: 'x402',
-            version: '1.0.0',
-            facilitator: 'PayAI',
-            
-            // Payment details
-            payment: {
-                method: 'USDC',
-                chain: 'Base',
-                chainId: 8453,
-                network: 'mainnet',
-                address: USDC_PAYMENT_ADDRESS,
-                amount: '1000000', // 1 USDC (6 decimals)
-                tokenAddress: USDC_ADDRESS,
-                tokenSymbol: 'USDC',
-                tokenDecimals: 6
-            },
-            
-            // Minting details
-            mint: {
-                tokensPerMint: '50000000000000000000000', // 50,000 tokens (18 decimals)
-                tokensPerMintFormatted: '50000',
-                tokenName: 'x402rocks',
-                tokenSymbol: 'X402',
-                tokenDecimals: 18,
-                contractAddress: CONTRACT_ADDRESS,
-                maxMints: 40000,
-                currentMints: 0 // You can make this dynamic if tracking
-            },
-            
-            // API endpoints for AI agents
-            endpoints: {
-                info: `${baseUrl}/api/payai-info`,
-                requestMint: `${baseUrl}/api/payai-mint`,
-                checkStatus: `${baseUrl}/api/payment-status/{paymentId}`,
-                balance: `${baseUrl}/api/balance/{address}`,
-                stats: `${baseUrl}/api/stats`
-            },
-            
-            // Features
-            features: [
-                'automatic-detection',
-                'usdc-only',
-                'instant-minting',
-                'ai-agent-compatible',
-                'no-approval-needed',
-                'base-mainnet'
-            ],
-            
-            // Instructions for AI agents
-            instructions: {
-                step1: 'Call POST /api/payai-mint with your wallet address',
-                step2: 'Send 1 USDC to the payment address provided',
-                step3: 'Tokens will be automatically minted to your wallet within 60 seconds',
-                step4: 'Check status using the paymentId provided'
-            },
-            
-            // Response time
-            estimatedTime: '30-60 seconds',
-            
-            // Links
-            links: {
-                dashboard: baseUrl,
-                explorer: `https://basescan.org/address/${CONTRACT_ADDRESS}`,
-                facilitator: 'https://www.x402scan.com/facilitator/payAI'
-            }
-        });
-    } catch (error) {
-        console.error('PayAI info error:', error);
-        res.status(500).json({ 
-            error: 'Failed to get PayAI info',
-            message: error.message 
-        });
-    }
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: Date.now(),
+    service: 'x402rocks',
+    version: '2.0.0'
+  });
 });
 
+app.get('/api/info', async (req, res) => {
+  if (!CONTRACT_ADDRESS) {
+    return res.status(503).json({
+      error: 'Service not ready',
+      message: 'Contract not deployed yet. Please check your environment variables.',
+      required: [
+        'CONTRACT_ADDRESS',
+        'USDC_PAYMENT_ADDRESS',
+        'PRIVATE_KEY'
+      ]
+    });
+  }
+
+  try {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    res.json({
+      version: '1.0',
+      service: 'x402rocks Token Minting',
+      description: 'Mint 50,000 x402rocks tokens with automatic USDC payment detection',
+      
+      contract: {
+        address: CONTRACT_ADDRESS,
+        chain: 'Base Mainnet',
+        chainId: 8453,
+        explorer: `${BASE_CONFIG.explorer}/address/${CONTRACT_ADDRESS}`,
+        tokenSymbol: 'X402',
+        tokensPerMint: '50000'
+      },
+      
+      payment: {
+        method: 'usdc_automatic',
+        amount: '1.00',
+        currency: 'USDC',
+        address: USDC_PAYMENT_ADDRESS,
+        tokenAddress: USDC_ADDRESS,
+        automatic: true,
+        note: 'Send USDC and tokens will be automatically minted to your address'
+      },
+      
+      endpoints: {
+        info: `${baseUrl}/api/info`,
+        stats: `${baseUrl}/api/stats`,
+        requestMint: `${baseUrl}/api/request-mint`,
+        paymentStatus: `${baseUrl}/api/payment-status/:paymentId`,
+        checkPending: `${baseUrl}/api/check-pending/:address`,
+        balance: `${baseUrl}/api/balance/:address`,
+        
+        // PayAI endpoints
+        payaiInfo: `${baseUrl}/api/payai-info`,
+        payaiMint: `${baseUrl}/api/payai-mint`,
+        payaiHealth: `${baseUrl}/api/payai-health`
+      },
+      
+      features: [
+        'automatic-usdc-detection',
+        'no-manual-submission',
+        'instant-minting',
+        'payai-compatible',
+        'x402-protocol'
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get service info',
+      message: error.message 
+    });
+  }
+});
+
+// PayAI facilitator info endpoint
+app.get('/api/payai-info', (req, res) => {
+  try {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    res.json({
+      service: 'x402rocks Token Minting',
+      description: 'Mint 50,000 x402rocks tokens for 1 USDC on Base mainnet',
+      protocol: 'x402',
+      version: '1.0.0',
+      facilitator: 'PayAI',
+      
+      payment: {
+        method: 'USDC',
+        chain: 'Base',
+        chainId: 8453,
+        network: 'mainnet',
+        address: USDC_PAYMENT_ADDRESS,
+        amount: '1000000',
+        tokenAddress: USDC_ADDRESS,
+        tokenSymbol: 'USDC',
+        tokenDecimals: 6
+      },
+      
+      mint: {
+        tokensPerMint: '50000000000000000000000',
+        tokensPerMintFormatted: '50000',
+        tokenName: 'x402rocks',
+        tokenSymbol: 'X402',
+        tokenDecimals: 18,
+        contractAddress: CONTRACT_ADDRESS,
+        maxMints: 40000
+      },
+      
+      endpoints: {
+        info: `${baseUrl}/api/payai-info`,
+        requestMint: `${baseUrl}/api/payai-mint`,
+        checkStatus: `${baseUrl}/api/payment-status/{paymentId}`,
+        balance: `${baseUrl}/api/balance/{address}`,
+        stats: `${baseUrl}/api/stats`
+      },
+      
+      features: [
+        'automatic-detection',
+        'usdc-only',
+        'instant-minting',
+        'ai-agent-compatible',
+        'no-approval-needed',
+        'base-mainnet'
+      ],
+      
+      instructions: {
+        step1: 'Call POST /api/payai-mint with your wallet address',
+        step2: 'Send 1 USDC to the payment address provided',
+        step3: 'Tokens will be automatically minted to your wallet within 60 seconds',
+        step4: 'Check status using the paymentId provided'
+      },
+      
+      estimatedTime: '30-60 seconds',
+      
+      links: {
+        dashboard: baseUrl,
+        explorer: `https://basescan.org/address/${CONTRACT_ADDRESS}`,
+        facilitator: 'https://www.x402scan.com/facilitator/payAI'
+      }
+    });
+  } catch (error) {
+    console.error('PayAI info error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get PayAI info',
+      message: error.message 
+    });
+  }
+});
 
 app.get('/api/stats', async (req, res) => {
   if (!contract) {
     return res.json({
-      error: 'Contract not deployed'
+      error: 'Contract not deployed',
+      totalMints: '0',
+      remainingMints: '40000',
+      maxMints: 40000,
+      tokensPerMint: 50000,
+      price: {
+        usdc: '1.00',
+        currency: 'USDC'
+      }
     });
   }
 
@@ -532,77 +613,87 @@ app.get('/api/stats', async (req, res) => {
 /**
  * Request mint - returns payment instructions with automatic monitoring
  */
+app.post('/api/request-mint', (req, res) => {
+  const { address } = req.body;
+
+  if (!address || !ethers.isAddress(address)) {
+    return res.status(400).json({
+      error: 'Invalid address provided'
+    });
+  }
+
+  if (!CONTRACT_ADDRESS || !USDC_PAYMENT_ADDRESS) {
+    return res.status(503).json({
+      error: 'Service not ready',
+      message: 'Contract or payment address not configured'
+    });
+  }
+
+  try {
+    const instructions = monitor.createPaymentInstructions(req, address);
+    res.json(instructions);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to create payment instructions',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * PayAI mint endpoint
+ */
 app.post('/api/payai-mint', async (req, res) => {
-    try {
-        const { recipientAddress, agentId, metadata } = req.body;
+  try {
+    const { recipientAddress, agentId, metadata } = req.body;
 
-        // Validate recipient address
-        if (!recipientAddress || !recipientAddress.startsWith('0x') || recipientAddress.length !== 42) {
-            return res.status(400).json({ 
-                error: 'Invalid recipient address',
-                details: 'Address must be a valid Ethereum address (0x... 42 characters)'
-            });
-        }
-
-        // Create unique payment ID
-        const paymentId = `payai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Store payment request
-        pendingPayments.set(paymentId, {
-            address: recipientAddress,
-            status: 'waiting_for_payment',
-            createdAt: Date.now(),
-            facilitator: 'PayAI',
-            agentId: agentId || 'unknown',
-            metadata: metadata || {},
-            txHash: null
-        });
-
-        // Log for monitoring
-        console.log(`[PayAI] New mint request: ${paymentId} for ${recipientAddress}`);
-
-        // Return payment instructions
-        res.json({
-            success: true,
-            paymentId: paymentId,
-            
-            // Payment details
-            payment: {
-                address: USDC_PAYMENT_ADDRESS,
-                amount: '1000000', // 1 USDC
-                amountFormatted: '1 USDC',
-                token: USDC_ADDRESS,
-                tokenSymbol: 'USDC',
-                chain: 'Base',
-                chainId: 8453,
-                network: 'mainnet'
-            },
-            
-            // What the agent will receive
-            receive: {
-                amount: '50000',
-                token: 'X402',
-                tokenAddress: CONTRACT_ADDRESS
-            },
-            
-            // Instructions
-            instructions: 'Send exactly 1 USDC to the payment address. Tokens will be minted automatically within 60 seconds.',
-            
-            // Monitoring
-            statusUrl: `${req.protocol}://${req.get('host')}/api/payment-status/${paymentId}`,
-            
-            // Timing
-            estimatedTime: '30-60 seconds',
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-        });
-
-    } catch (error) {
-        console.error('PayAI mint error:', error);
-        res.status(500).json({ 
-            error: 'Failed to process PayAI mint request',
-            message: error.message 
-        });
+    if (!recipientAddress || !recipientAddress.startsWith('0x') || recipientAddress.length !== 42) {
+      return res.status(400).json({ 
+        error: 'Invalid recipient address',
+        details: 'Address must be a valid Ethereum address (0x... 42 characters)'
+      });
     }
+
+    // Use the monitor's payment system
+    const instructions = monitor.createPaymentInstructions(req, recipientAddress);
+
+    // Return PayAI-compatible response
+    res.json({
+      success: true,
+      paymentId: instructions.paymentId,
+      
+      payment: {
+        address: USDC_PAYMENT_ADDRESS,
+        amount: '1000000',
+        amountFormatted: '1 USDC',
+        token: USDC_ADDRESS,
+        tokenSymbol: 'USDC',
+        chain: 'Base',
+        chainId: 8453,
+        network: 'mainnet'
+      },
+      
+      receive: {
+        amount: '50000',
+        token: 'X402',
+        tokenAddress: CONTRACT_ADDRESS
+      },
+      
+      instructions: 'Send exactly 1 USDC to the payment address. Tokens will be minted automatically within 60 seconds.',
+      
+      statusUrl: instructions.monitoring.statusEndpoint,
+      
+      estimatedTime: '30-60 seconds',
+      expiresAt: instructions.expiresAt
+    });
+
+  } catch (error) {
+    console.error('PayAI mint error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process PayAI mint request',
+      message: error.message 
+    });
+  }
 });
 
 /**
@@ -682,14 +773,14 @@ app.get('/api/balance/:address', async (req, res) => {
 });
 
 app.get('/api/payai-health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        service: 'x402rocks',
-        facilitator: 'PayAI',
-        timestamp: Date.now(),
-        monitoring: monitoringActive ? 'active' : 'inactive',
-        contract: CONTRACT_ADDRESS ? 'deployed' : 'not deployed'
-    });
+  res.json({
+    status: 'healthy',
+    service: 'x402rocks',
+    facilitator: 'PayAI',
+    timestamp: Date.now(),
+    monitoring: CONTRACT_ADDRESS && USDC_PAYMENT_ADDRESS ? 'active' : 'inactive',
+    contract: CONTRACT_ADDRESS ? 'deployed' : 'not deployed'
+  });
 });
 
 app.use((req, res) => {
@@ -699,9 +790,12 @@ app.use((req, res) => {
       'GET  /api/info',
       'GET  /api/stats',
       'POST /api/request-mint',
+      'POST /api/payai-mint',
+      'GET  /api/payai-info',
       'GET  /api/payment-status/:paymentId',
       'GET  /api/check-pending/:address',
       'GET  /api/balance/:address',
+      'GET  /api/payai-health',
       'GET  /health',
       'GET  / (dashboard)'
     ]
@@ -721,11 +815,12 @@ app.listen(PORT, () => {
   console.log(`
     
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║           x402rocks - AUTOMATIC USDC DETECTION                               ║
+║           x402rocks - AUTOMATIC USDC DETECTION + PAYAI                       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 ✅ Server running on port ${PORT}
 ✅ Payment method: USDC AUTOMATIC
+✅ PayAI facilitator: ENABLED
 ✅ No manual transaction submission needed!
 
 Configuration:
@@ -743,6 +838,7 @@ How it works:
 4. Done! No manual steps!
 
 Dashboard: http://localhost:${PORT}
+PayAI Info: http://localhost:${PORT}/api/payai-info
 
 🚀 Automatic payment detection active!
   `);
