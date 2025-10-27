@@ -407,6 +407,8 @@ const monitor = new AutomaticUSDCMonitor();
 // API ENDPOINTS
 // =============================================================================
 
+
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
@@ -433,6 +435,78 @@ app.get('/api/info', async (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     
     res.json({
+      // x402scan required fields
+      x402Version: 1,
+      accepts: [
+        {
+          scheme: "exact",
+          network: "base",
+          maxAmountRequired: "1000000",
+          resource: "/api/request-mint",
+          description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
+          mimeType: "application/json",
+          payTo: USDC_PAYMENT_ADDRESS,
+          maxTimeoutSeconds: 1800,
+          asset: USDC_ADDRESS,
+          
+          outputSchema: {
+            input: {
+              type: "http",
+              method: "POST",
+              bodyType: "json",
+              bodyFields: {
+                address: {
+                  type: "string",
+                  required: true,
+                  description: "Ethereum address to receive tokens"
+                }
+              }
+            }
+          },
+          
+          extra: {
+            service: 'x402rocks Token Minting',
+            description: 'Mint 50,000 x402rocks tokens with automatic USDC payment detection',
+            contract: {
+              address: CONTRACT_ADDRESS,
+              chain: 'Base Mainnet',
+              chainId: 8453,
+              explorer: `${BASE_CONFIG.explorer}/address/${CONTRACT_ADDRESS}`,
+              tokenSymbol: 'X402',
+              tokensPerMint: '50000'
+            },
+            payment: {
+              method: 'usdc_automatic',
+              amount: '1.00',
+              currency: 'USDC',
+              address: USDC_PAYMENT_ADDRESS,
+              tokenAddress: USDC_ADDRESS,
+              automatic: true,
+              note: 'Send USDC and tokens will be automatically minted to your address'
+            },
+            endpoints: {
+              info: `${baseUrl}/api/info`,
+              stats: `${baseUrl}/api/stats`,
+              requestMint: `${baseUrl}/api/request-mint`,
+              paymentStatus: `${baseUrl}/api/payment-status/:paymentId`,
+              checkPending: `${baseUrl}/api/check-pending/:address`,
+              balance: `${baseUrl}/api/balance/:address`,
+              payaiInfo: `${baseUrl}/api/payai-info`,
+              payaiMint: `${baseUrl}/api/payai-mint`,
+              payaiHealth: `${baseUrl}/api/payai-health`
+            },
+            features: [
+              'automatic-usdc-detection',
+              'no-manual-submission',
+              'instant-minting',
+              'payai-compatible',
+              'x402-protocol'
+            ]
+          }
+        }
+      ],
+      
+      // ✅ BACKWARD COMPATIBILITY - Keep these for your dashboard
       version: '1.0',
       service: 'x402rocks Token Minting',
       description: 'Mint 50,000 x402rocks tokens with automatic USDC payment detection',
@@ -463,8 +537,6 @@ app.get('/api/info', async (req, res) => {
         paymentStatus: `${baseUrl}/api/payment-status/:paymentId`,
         checkPending: `${baseUrl}/api/check-pending/:address`,
         balance: `${baseUrl}/api/balance/:address`,
-        
-        // PayAI endpoints
         payaiInfo: `${baseUrl}/api/payai-info`,
         payaiMint: `${baseUrl}/api/payai-mint`,
         payaiHealth: `${baseUrl}/api/payai-health`
@@ -486,80 +558,6 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
-// PayAI facilitator info endpoint
-app.get('/api/payai-info', (req, res) => {
-  try {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    
-    res.json({
-      service: 'x402rocks Token Minting',
-      description: 'Mint 50,000 x402rocks tokens for 1 USDC on Base mainnet',
-      protocol: 'x402',
-      version: '1.0.0',
-      facilitator: 'PayAI',
-      
-      payment: {
-        method: 'USDC',
-        chain: 'Base',
-        chainId: 8453,
-        network: 'mainnet',
-        address: USDC_PAYMENT_ADDRESS,
-        amount: '1000000',
-        tokenAddress: USDC_ADDRESS,
-        tokenSymbol: 'USDC',
-        tokenDecimals: 6
-      },
-      
-      mint: {
-        tokensPerMint: '50000000000000000000000',
-        tokensPerMintFormatted: '50000',
-        tokenName: 'x402rocks',
-        tokenSymbol: 'X402',
-        tokenDecimals: 18,
-        contractAddress: CONTRACT_ADDRESS,
-        maxMints: 40000
-      },
-      
-      endpoints: {
-        info: `${baseUrl}/api/payai-info`,
-        requestMint: `${baseUrl}/api/payai-mint`,
-        checkStatus: `${baseUrl}/api/payment-status/{paymentId}`,
-        balance: `${baseUrl}/api/balance/{address}`,
-        stats: `${baseUrl}/api/stats`
-      },
-      
-      features: [
-        'automatic-detection',
-        'usdc-only',
-        'instant-minting',
-        'ai-agent-compatible',
-        'no-approval-needed',
-        'base-mainnet'
-      ],
-      
-      instructions: {
-        step1: 'Call POST /api/payai-mint with your wallet address',
-        step2: 'Send 1 USDC to the payment address provided',
-        step3: 'Tokens will be automatically minted to your wallet within 60 seconds',
-        step4: 'Check status using the paymentId provided'
-      },
-      
-      estimatedTime: '30-60 seconds',
-      
-      links: {
-        dashboard: baseUrl,
-        explorer: `https://basescan.org/address/${CONTRACT_ADDRESS}`,
-        facilitator: 'https://www.x402scan.com/facilitator/payAI'
-      }
-    });
-  } catch (error) {
-    console.error('PayAI info error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get PayAI info',
-      message: error.message 
-    });
-  }
-});
 
 app.get('/api/stats', async (req, res) => {
   if (!contract) {
