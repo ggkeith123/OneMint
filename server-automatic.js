@@ -781,26 +781,62 @@ app.get('/api/payai-health', (req, res) => {
   });
 });
 
-// Root endpoint - smart routing for dashboard and x402scan
+// Root endpoint - check for x402scan query parameter
 app.get('/', (req, res) => {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   
-  // If request accepts JSON (x402scan, API clients), return 402
-  const acceptsJson = req.headers.accept && 
-                     (req.headers.accept.includes('application/json') || 
-                      req.headers.accept.includes('*/*') && !req.headers.accept.includes('text/html'));
-  
-  // Check user agent - if it's a browser, serve HTML
-  const isBrowser = req.headers['user-agent'] && 
-                    req.headers['user-agent'].includes('Mozilla');
-  
-  // Serve dashboard for browsers, 402 for API/x402scan
-  if (isBrowser && !acceptsJson) {
-    // Serve dashboard HTML
-    return res.sendFile('index.html', { root: './public' });
+  // If ?x402 query param or JSON accept header, return 402
+  if (req.query.x402 !== undefined || req.path === '/.well-known/payment-required') {
+    return res.status(402).json({
+      x402Version: 1,
+      error: "Payment required",
+      accepts: [
+        {
+          scheme: "exact",
+          network: "base",
+          maxAmountRequired: "1000000",
+          resource: "/api/request-mint",
+          description: "Mint 50,000 x402rocks tokens by paying 1 USDC",
+          mimeType: "application/json",
+          payTo: USDC_PAYMENT_ADDRESS,
+          maxTimeoutSeconds: 1800,
+          asset: USDC_ADDRESS,
+          
+          outputSchema: {
+            input: {
+              type: "http",
+              method: "POST",
+              bodyType: "json",
+              bodyFields: {
+                address: {
+                  type: "string",
+                  required: true,
+                  description: "Ethereum address to receive tokens"
+                }
+              }
+            }
+          },
+          
+          extra: {
+            service: 'x402rocks',
+            contractAddress: CONTRACT_ADDRESS,
+            chainId: 8453,
+            dashboardUrl: baseUrl,
+            infoUrl: `${baseUrl}/api/info`
+          }
+        }
+      ]
+    });
   }
   
-  // Return 402 for x402scan and API clients
+  // Serve dashboard for regular requests
+  res.sendFile('index.html', { root: './public' });
+});
+
+// Also add dedicated 402 endpoint
+app.get('/.well-known/payment-required', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  
   res.status(402).json({
     x402Version: 1,
     error: "Payment required",
@@ -816,56 +852,13 @@ app.get('/', (req, res) => {
         maxTimeoutSeconds: 1800,
         asset: USDC_ADDRESS,
         
-        outputSchema: {
-          input: {
-            type: "http",
-            method: "POST",
-            bodyType: "json",
-            bodyFields: {
-              address: {
-                type: "string",
-                required: true,
-                description: "Ethereum address to receive tokens"
-              }
-            }
-          }
-        },
-        
         extra: {
           service: 'x402rocks',
           contractAddress: CONTRACT_ADDRESS,
-          chainId: 8453,
-          dashboardUrl: baseUrl,
-          infoUrl: `${baseUrl}/api/info`
+          chainId: 8453
         }
       }
     ]
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Endpoint not found',
-    availableEndpoints: [
-      'GET  /api/info',
-      'GET  /api/stats',
-      'POST /api/request-mint',
-      'POST /api/payai-mint',
-      'GET  /api/payai-info',
-      'GET  /api/payment-status/:paymentId',
-      'GET  /api/check-pending/:address',
-      'GET  /api/balance/:address',
-      'GET  /api/payai-health',
-      'GET  /health',
-      'GET  / (dashboard)'
-    ]
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal server error'
   });
 });
 
